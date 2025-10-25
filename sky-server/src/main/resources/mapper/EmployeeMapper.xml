@@ -32,8 +32,9 @@
             <if test="sex !=null">
                 sex=#{sex}
             </if>
-        where id = #{id}
+
         </set>
+        where id = #{id}
     </update>
     <!--根据姓名模糊查询 并且根据创建时间倒叙排序-->
     <select id="list" resultType="com.sky.entity.Employee">
