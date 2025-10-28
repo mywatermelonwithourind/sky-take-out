@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sky.mapper.DishMapper">
+    <!--新增菜品，注意：获取主键属性值的时候,如果sql在xml中那么useGenerateKeys和keyProperty必须在xml中-->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into dish
+        values (null, #{name}, #{categoryId}, #{price}, #{image}, #{description}, #{status},
+                #{createTime}, #{updateTime}, #{createUser}, #{updateUser})
+    </insert>
+</mapper>
