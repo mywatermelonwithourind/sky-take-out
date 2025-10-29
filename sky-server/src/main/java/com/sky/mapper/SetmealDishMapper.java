@@ -8,8 +8,8 @@ import java.util.List;
 public interface SetmealDishMapper {
 
     /**
-     * 根据菜品ids统计套餐中关联的菜品数量
-     * @param ids
+     * 根据菜品ids查询套餐中关联的菜品数量
+     * @param dishIds
      * @return
      */
     int countByDishId(List<Long> dishIds);
