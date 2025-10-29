@@ -1,6 +1,10 @@
 package com.sky.mapper;
 
+import com.sky.anno.AutoFill;
+import com.sky.enumeration.OperationType;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
@@ -13,4 +17,14 @@ public interface SetmealDishMapper {
      * @return
      */
     int countByDishId(List<Long> dishIds);
+
+    /**
+     * 根据菜品id查询套餐id
+     * @param dishId
+     * @return
+     */
+    @Select("select setmeal_id from setmeal_dish where dish_id = #{dishId}")
+    List<Long> getById(Long dishId);
+
+
 }
