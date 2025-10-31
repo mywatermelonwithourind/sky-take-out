@@ -9,6 +9,13 @@
     </foreach>
 
     </insert>
+    <!--    根据套餐id批量删除套餐与菜品关联数据-->
+    <delete id="deleteBySetmealIds">
+        delete from setmeal_dish where setmeal_id in
+                <foreach collection="setmealIds" item="setmealId" open="(" separator="," close=")">
+                    #{setmealId}
+                </foreach>
+    </delete>
     <!--    获取套餐与套餐关联的菜品id的数量-->
     <select id="countByDishId" resultType="java.lang.Integer">
         SELECT COUNT(*) FROM setmeal_dish WHERE dish_id  in

@@ -33,4 +33,10 @@ public interface SetmealDishMapper {
      * @param setmealDishs
      */
     void batchInsert(List<SetmealDish> setmealDishes);
+
+    /**
+     *
+     * @param setmealIds
+     */
+    void deleteBySetmealIds(List<Long> setmealIds);
 }
