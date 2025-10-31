@@ -30,4 +30,10 @@ public interface SetmealService {
     void delete(List<Long> ids);
 
 
+    /**
+     * 根据id查询套餐信息
+     * @param id
+     * @return
+     */
+    SetmealVO getById(Long id);
 }

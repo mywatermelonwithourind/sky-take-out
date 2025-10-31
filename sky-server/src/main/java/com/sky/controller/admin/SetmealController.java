@@ -66,5 +66,17 @@ public class SetmealController {
         return Result.success();
     }
 
+    /**
+     * 根据id查询套餐
+     * @param id
+     * @return
+     */
+    @ApiOperation("根据id查询套餐")
+    @GetMapping("/{id}")
+    public Result<SetmealVO> getById(@PathVariable Long id){
+        log.info("根据id查询套餐: {}", id);
+        SetmealVO setmealVO= setmealService.getById(id);
 
+        return Result.success(setmealVO);
+    }
 }
