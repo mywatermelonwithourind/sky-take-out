@@ -5,6 +5,21 @@
         insert into shopping_cart (user_id, dish_id, setmeal_id, name, image, dish_flavor, number, amount, create_time)
         values (#{userId}, #{dishId}, #{setmealId}, #{name}, #{image}, #{dishFlavor}, #{number}, #{amount}, #{createTime})
     </insert>
+    <delete id="delete">
+        delete from shopping_cart
+        <where>
+            <if test="dishId!=null">
+                AND dish_id = #{dishId}
+            </if>
+            <if test="setmealId!=null">
+                AND setmeal_id = #{setmealId}
+            </if>
+            <if test="dishFlavor!=null">
+                AND dish_flavor = #{dishFlavor}
+            </if>
+            AND user_id = #{userId}
+        </where>
+    </delete>
 
     <select id="selectBy" resultType="com.sky.entity.ShoppingCart">
             select * from shopping_cart

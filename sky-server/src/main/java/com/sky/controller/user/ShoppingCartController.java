@@ -48,9 +48,22 @@ public class ShoppingCartController {
      */
     @ApiOperation("清空购物车")
     @DeleteMapping("/clean")
-    private Result clear(){
+    private Result<String> clear(){
         log.info("清空购物车");
         shoppingCartService.clean();
+        return Result.success();
+    }
+
+    /**
+     * 减少购物车
+     * @param dto
+     * @return
+     */
+    @ApiOperation("减少购物车")
+    @PostMapping("/sub")
+    private Result<String> sub(@RequestBody ShoppingCartDTO dto){
+        log.info("减少购物车: {}", dto);
+        shoppingCartService.sub(dto);
         return Result.success();
     }
 }
