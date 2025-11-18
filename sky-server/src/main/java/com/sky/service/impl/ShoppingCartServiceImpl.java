@@ -71,4 +71,9 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
         List<ShoppingCart> shoppingCarts = shoppingCartMapper.selectBy(cart);
         return shoppingCarts;
     }
+
+    @Override
+    public void clean() {
+        shoppingCartMapper.clean(BaseContext.getCurrentId());
+    }
 }
