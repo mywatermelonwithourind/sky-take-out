@@ -87,7 +87,7 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
         //2.查询购物车中是否有该数据
         List<ShoppingCart> list = shoppingCartMapper.selectBy(shoppingCart);
 
-        if(list!=null && list.isEmpty()){
+        if(list!=null && !list.isEmpty()){
             ShoppingCart cart=list().get(0);
 
             Integer number=cart.getNumber();
