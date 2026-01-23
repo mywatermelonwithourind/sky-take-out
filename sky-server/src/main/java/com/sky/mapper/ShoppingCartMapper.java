@@ -4,6 +4,7 @@ package com.sky.mapper;
 import com.sky.entity.ShoppingCart;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
@@ -41,4 +42,11 @@ public interface ShoppingCartMapper {
      * @param cart
      */
     void delete(ShoppingCart cart);
+
+    /**
+     * 根据用户id查询购物车列表
+     * @param userId
+     */
+    @Select("select * from shopping_cart where user_id = #{userId} order by create_time asc")
+    List<ShoppingCart> list(Long userId);
 }
