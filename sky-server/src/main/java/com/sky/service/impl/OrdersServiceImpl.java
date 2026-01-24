@@ -1,8 +1,11 @@
 package com.sky.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
+import com.sky.dto.OrdersPageQueryDTO;
 import com.sky.dto.OrdersPaymentDTO;
 import com.sky.dto.OrdersSubmitDTO;
 import com.sky.entity.*;
@@ -10,10 +13,12 @@ import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
 import com.sky.exception.UserNotLoginException;
 import com.sky.mapper.*;
+import com.sky.result.PageResult;
 import com.sky.service.OrdersService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderSubmitVO;
+import com.sky.vo.OrderVO;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.weaver.ast.Or;
 import org.springframework.beans.BeanUtils;
@@ -166,5 +171,33 @@ public class OrdersServiceImpl implements OrdersService {
                 .build();
 
         ordersMapper.update(orders);
+    }
+
+    @Override
+    public PageResult historyOrders(OrdersPageQueryDTO dto) {
+        //1.取出后当前用户的id
+        dto.setUserId(BaseContext.getCurrentId());
+        //2.设置分页插件
+        PageHelper.startPage(dto.getPage(), dto.getPageSize());
+        //3.执行分页查询
+        //注意：这里不能直接查询OrderVO，因为需要Orders与Order_Detail的列表进行拼接
+        Page<Orders> page=ordersMapper.list(dto);
+        //4.构造分页结果返回
+        //4.1创建空的List集合
+        List<OrderVO> list=new ArrayList<>();
+        if(page!=null && !page.isEmpty()){
+            //4.2遍历page中的数据往集合中补充元素
+            for(Orders orders:page){
+                //创建一个空的订单的对象往订单中拷贝对应的数据
+                OrderVO orderVO=new OrderVO();
+                BeanUtils.copyProperties(orders,orderVO);
+                //查询订单明细数据
+                List<OrderDetail> orderDetailList=orderDetailMapper.getByOrderId(orders.getId());
+                orderVO.setOrderDetailList(orderDetailList);
+                //把订单对象添加到List集合中
+                list.add(orderVO);
+            }
+        }
+        return new PageResult(page.getTotal(),list);
     }
 }

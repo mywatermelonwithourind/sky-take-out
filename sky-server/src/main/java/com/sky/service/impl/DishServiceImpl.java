@@ -155,7 +155,7 @@ public class DishServiceImpl implements DishService {
             //3.1 查询对应的套餐id
             List<Long> setmealIds=setmealDishMapper.getById(id);
 
-            if(setmealIds!=null&&setmealIds.isEmpty()){
+            if(setmealIds != null && !setmealIds.isEmpty()){
                 for (Long setmealId : setmealIds) {
                     Setmeal setmeal = Setmeal.builder()
                             .id(setmealId)
