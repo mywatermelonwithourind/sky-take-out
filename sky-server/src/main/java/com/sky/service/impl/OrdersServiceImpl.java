@@ -174,6 +174,7 @@ public class OrdersServiceImpl implements OrdersService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PageResult historyOrders(OrdersPageQueryDTO dto) {
         //1.取出后当前用户的id
         dto.setUserId(BaseContext.getCurrentId());
@@ -199,5 +200,27 @@ public class OrdersServiceImpl implements OrdersService {
             }
         }
         return new PageResult(page.getTotal(),list);
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public OrderVO orderDetail(Long id) {
+        //1.根据id查询订单表
+        Orders orders= ordersMapper.getById(id);
+
+        if(orders==null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        //2.构造OrderVO对象
+        OrderVO vo= new OrderVO();
+        BeanUtils.copyProperties(orders,vo);
+        //3.根据订单id查询订单明细表
+
+        List<OrderDetail> list=orderDetailMapper.getByOrderId(vo.getId());
+        vo.setOrderDetailList(list);
+
+
+        return vo;
     }
 }

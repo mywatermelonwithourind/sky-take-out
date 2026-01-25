@@ -88,7 +88,7 @@ public class ShoppingCartServiceImpl implements ShoppingCartService {
         List<ShoppingCart> list = shoppingCartMapper.selectBy(shoppingCart);
 
         if(list!=null && !list.isEmpty()){
-            ShoppingCart cart=list().get(0);
+            ShoppingCart cart=list.get(0);
 
             Integer number=cart.getNumber();
             //3.判断数量是否大于1
