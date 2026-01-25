@@ -17,6 +17,7 @@ import com.sky.result.PageResult;
 import com.sky.service.OrdersService;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
+import com.sky.vo.OrderStatisticsVO;
 import com.sky.vo.OrderSubmitVO;
 import com.sky.vo.OrderVO;
 import lombok.extern.slf4j.Slf4j;
@@ -329,5 +330,11 @@ public class OrdersServiceImpl implements OrdersService {
         }
         return new PageResult(total,list);
 
+    }
+
+    @Override
+    public OrderStatisticsVO statistics() {
+
+        return ordersMapper.getOrderStatistics();
     }
 }
