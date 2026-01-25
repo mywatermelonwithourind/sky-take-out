@@ -223,4 +223,42 @@ public class OrdersServiceImpl implements OrdersService {
 
         return vo;
     }
+
+    @Override
+    public void cancel(Long id) {
+        //1.根据id查询订单表
+        Orders orders=ordersMapper.getById(id);
+        if(orders==null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        //【安全校验】校验订单是否属于当前用户
+        Long currentId=BaseContext.getCurrentId();
+        if(!orders.getUserId().equals(currentId)){
+            throw new OrderBusinessException("无权操作此订单");
+        }
+
+        //2.判断订单状态是否可以取消（状态为1，2可被取消）
+        if(orders.getStatus()>=Orders.CONFIRMED){
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        Orders order=new Orders();
+        order.setId(id);
+
+        //3.处理退款逻辑
+        if(orders.getStatus().equals(Orders.TO_BE_CONFIRMED)){
+            /**
+             * 由于没有微信商户号这里不不进行退款操作
+             */
+
+            //修改支付状态
+            order.setPayStatus(Orders.REFUND);
+        }
+
+        //4.修改订单状态为已取消
+        order.setStatus(Orders.CANCELLED);
+        order.setCancelTime(LocalDateTime.now());
+        order.setCancelReason("用户取消");
+        ordersMapper.update(order);
+    }
 }
