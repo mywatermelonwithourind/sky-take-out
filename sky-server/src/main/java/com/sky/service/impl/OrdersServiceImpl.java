@@ -30,6 +30,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -46,6 +47,9 @@ public class OrdersServiceImpl implements OrdersService {
     private UserMapper userMapper;
     @Autowired
     private WeChatPayUtil weChatPayUtil;
+
+    @Autowired
+    private DishMapper dishMapper;
 
 
     @Override
@@ -292,6 +296,38 @@ public class OrdersServiceImpl implements OrdersService {
             shoppingCart.setCreateTime(LocalDateTime.now());
             shoppingCartMapper.insert(shoppingCart);
         }
+
+    }
+
+    @Override
+    public PageResult conditionSearch(OrdersPageQueryDTO dto) {
+        //1.设置分页插件
+        PageHelper.startPage(dto.getPage(),dto.getPageSize());
+        //2.执行分页查询
+        Page<Orders> page= ordersMapper.list(dto);
+        //3.安全检查
+        long total = page.getTotal();
+        List<Orders> ordersList = page.getResult();
+        List<OrderVO> list=new ArrayList<>();
+        if(ordersList!=null && !ordersList.isEmpty()){
+            for(Orders orders:ordersList){
+                OrderVO vo=new OrderVO();
+                //4.拷贝属性
+                BeanUtils.copyProperties(orders,vo);
+                //5.查询订单明细数据
+                List<OrderDetail> details = orderDetailMapper.getByOrderId(orders.getId());
+
+                //6.补充数据
+                if(details!=null && !details.isEmpty()){
+                    String dishes = details.stream()
+                            .map(x -> x.getName() + "*" + x.getNumber() + ";")
+                            .collect(Collectors.joining());
+                    vo.setOrderDishes(dishes);
+                }
+                list.add(vo);
+            }
+        }
+        return new PageResult(total,list);
 
     }
 }
