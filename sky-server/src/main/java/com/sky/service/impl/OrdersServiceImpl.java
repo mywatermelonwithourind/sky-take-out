@@ -261,4 +261,37 @@ public class OrdersServiceImpl implements OrdersService {
         order.setCancelReason("用户取消");
         ordersMapper.update(order);
     }
+
+    @Override
+    public void repetition(Long id) {
+        //1.根据订单id查询相应的订单
+        Orders orders=ordersMapper.getById(id);
+
+        if(orders==null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        //安全校验
+        Long currentId=BaseContext.getCurrentId();
+        if(!orders.getUserId().equals(currentId)){
+            throw new OrderBusinessException("无权操作此订单");
+        }
+        //2.根据订单id查询订单明细数据
+        List<OrderDetail> orderDetailList=orderDetailMapper.getByOrderId(id);
+        if(orderDetailList==null || orderDetailList.size()==0){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+        //3.清空购物车数据
+        shoppingCartMapper.clean(currentId);
+        //4.将订单明细数据批量插入到购物车表中
+        for(OrderDetail detail:orderDetailList){
+            ShoppingCart shoppingCart=new ShoppingCart();
+            //拷贝数据忽略id以及orderId字段因为这两个字段在购物车表中没有意义
+            BeanUtils.copyProperties(detail,shoppingCart,"id","orderId");
+            //补充用户id字段以及创建时间字段
+            shoppingCart.setUserId(currentId);
+            shoppingCart.setCreateTime(LocalDateTime.now());
+            shoppingCartMapper.insert(shoppingCart);
+        }
+
+    }
 }
