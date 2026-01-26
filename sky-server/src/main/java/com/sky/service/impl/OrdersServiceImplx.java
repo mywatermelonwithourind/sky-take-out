@@ -397,7 +397,7 @@ public class OrdersServiceImplx implements OrdersService {
 
     @Override
     public void adminCancel(OrdersCancelDTO dto) {
-//1.根据id查询订单表
+        //1.根据id查询订单表
         Orders orders=ordersMapper.getById(dto.getId());
         if(orders==null){
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
@@ -425,6 +425,22 @@ public class OrdersServiceImplx implements OrdersService {
         order.setStatus(Orders.CANCELLED);
         order.setCancelTime(LocalDateTime.now());
         order.setCancelReason(dto.getCancelReason());
+        ordersMapper.update(order);
+    }
+
+    @Override
+    public void delivery(Long id) {
+        //1.根据id查询订单
+        Orders orders = getValidOrder(id);
+        //2.校验订单状态（必须是已接单才能派送）
+        if(orders.getStatus()!=Orders.CONFIRMED){
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+        //3.修改订单状态为派送中
+        Orders order=Orders.builder()
+                .id(orders.getId())
+                .status(Orders.DELIVERY_IN_PROGRESS)
+                .build();
         ordersMapper.update(order);
     }
 }
