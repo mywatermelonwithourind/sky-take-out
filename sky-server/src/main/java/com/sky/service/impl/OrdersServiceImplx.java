@@ -443,4 +443,22 @@ public class OrdersServiceImplx implements OrdersService {
                 .build();
         ordersMapper.update(order);
     }
+
+    @Override
+    public void complete(Long id) {
+        //1.根据id查询订单
+        Orders orders = getValidOrder(id);
+
+        //2.校验订单状态（必须是派送中才能完成订单）
+        if(orders.getStatus()!=Orders.DELIVERY_IN_PROGRESS){
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+        //3.修改订单状态为已完成
+        Orders order=Orders.builder()
+                .id(orders.getId())
+                .status(Orders.COMPLETED)
+                .deliveryTime(LocalDateTime.now())
+                .build();
+        ordersMapper.update(order);
+    }
 }
