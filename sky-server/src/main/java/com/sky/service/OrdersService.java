@@ -78,4 +78,10 @@ public interface OrdersService {
      * @param dto
      */
     void rejection(OrdersRejectionDTO dto);
+
+    /**
+     * 管理端取消订单
+     * @param dto
+     */
+    void adminCancel(OrdersCancelDTO dto);
 }

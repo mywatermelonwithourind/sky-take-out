@@ -248,7 +248,7 @@ public class OrdersServiceImplx implements OrdersService {
         order.setId(id);
 
         //3.处理退款逻辑
-        if(orders.getStatus().equals(Orders.TO_BE_CONFIRMED)){
+        if(orders.getPayStatus().equals(Orders.PAID)){
             /**
              * 由于没有微信商户号这里不不进行退款操作
              */
@@ -393,5 +393,38 @@ public class OrdersServiceImplx implements OrdersService {
 
         // 5. 更新
         ordersMapper.update(orderToUpdate);
+    }
+
+    @Override
+    public void adminCancel(OrdersCancelDTO dto) {
+//1.根据id查询订单表
+        Orders orders=ordersMapper.getById(dto.getId());
+        if(orders==null){
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        //2.判断订单状态是否可以取消（状态6,7不可被取消）
+        if(orders.getStatus()>=Orders.CANCELLED){
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        Orders order=new Orders();
+        order.setId(dto.getId());
+
+        //3.处理退款逻辑
+        if(orders.getPayStatus().equals(Orders.PAID)){
+            /**
+             * 由于没有微信商户号这里不不进行退款操作
+             */
+
+            //修改支付状态
+            order.setPayStatus(Orders.REFUND);
+        }
+
+        //4.修改订单状态为已取消
+        order.setStatus(Orders.CANCELLED);
+        order.setCancelTime(LocalDateTime.now());
+        order.setCancelReason(dto.getCancelReason());
+        ordersMapper.update(order);
     }
 }
