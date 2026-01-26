@@ -4,10 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
-import com.sky.dto.OrdersConfirmDTO;
-import com.sky.dto.OrdersPageQueryDTO;
-import com.sky.dto.OrdersPaymentDTO;
-import com.sky.dto.OrdersSubmitDTO;
+import com.sky.dto.*;
 import com.sky.entity.*;
 import com.sky.exception.AddressBookBusinessException;
 import com.sky.exception.OrderBusinessException;
@@ -26,9 +23,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -336,22 +335,26 @@ public class OrdersServiceImplx implements OrdersService {
         return ordersMapper.getOrderStatistics();
     }
 
-    @Override
-    public void confirm(OrdersConfirmDTO ordersConfirmDTO) {
-        //1.根据id查询订单
-        Orders order = ordersMapper.getById(ordersConfirmDTO.getId());
-        // 2. 校验订单是否存在
+    // 方法定义
+    private Orders getValidOrder(Long id) {
+        Orders order = ordersMapper.getById(id);
         if (order == null) {
             throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
         }
+        return order;
+    }
+    @Override
+    public void confirm(OrdersConfirmDTO ordersConfirmDTO) {
+        //1.根据id查询订单
+        Orders order = getValidOrder(ordersConfirmDTO.getId());
 
-        // 3. 校验状态（必须是“待接单”才能接单）
+        // 2. 校验状态（必须是“待接单”才能接单）
         // 使用常量 Orders.TO_BE_CONFIRMED 增强可读性
         if (!Orders.TO_BE_CONFIRMED.equals(order.getStatus())) {
             throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
         }
 
-        // 4. 修改订单状态为已接单
+        // 3. 修改订单状态为已接单
         Orders orders=Orders.builder()
                 .id(order.getId())
                 .status(Orders.CONFIRMED)
@@ -359,5 +362,36 @@ public class OrdersServiceImplx implements OrdersService {
 
         ordersMapper.update(orders);
 
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class) // 1. 加上事务
+    public void rejection(OrdersRejectionDTO dto) {
+        // 1. 根据id查询订单
+        Orders order = getValidOrder(dto.getId());
+
+        // 2. 校验状态
+        if (!Orders.TO_BE_CONFIRMED.equals(order.getStatus())) {
+            throw new OrderBusinessException(MessageConstant.ORDER_STATUS_ERROR);
+        }
+
+        // 3. 构建更新对象
+        // 建议命名为 orderToUpdate 以区分原始查询出的 order
+        Orders orderToUpdate = Orders.builder()
+                .id(order.getId())
+                .status(Orders.CANCELLED)
+                .rejectionReason(dto.getRejectionReason())
+                .cancelTime(LocalDateTime.now())
+                .build();
+
+        // 4. 支付状态校验
+        if (order.getPayStatus() == Orders.PAID) {
+            // 模拟退款逻辑
+            // log.info("模拟退款成功...");
+            orderToUpdate.setPayStatus(Orders.REFUND);
+        }
+
+        // 5. 更新
+        ordersMapper.update(orderToUpdate);
     }
 }
