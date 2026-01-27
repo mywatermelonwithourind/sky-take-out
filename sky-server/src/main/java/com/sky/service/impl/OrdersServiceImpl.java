@@ -1,7 +1,11 @@
 package com.sky.service.impl;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import com.google.gson.JsonObject;
 import com.sky.constant.MessageConstant;
 import com.sky.context.BaseContext;
 import com.sky.dto.*;
@@ -12,6 +16,7 @@ import com.sky.exception.UserNotLoginException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrdersService;
+import com.sky.utils.HttpClientUtil;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
 import com.sky.vo.OrderStatisticsVO;
@@ -20,19 +25,20 @@ import com.sky.vo.OrderVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class OrdersServiceImplx implements OrdersService {
+public class OrdersServiceImpl implements OrdersService {
     @Autowired
     private OrderDetailMapper orderDetailMapper;
     @Autowired
@@ -49,46 +55,66 @@ public class OrdersServiceImplx implements OrdersService {
     @Autowired
     private DishMapper dishMapper;
 
+    @Value("${sky.shop.address}")
+    private String shopAddress;
 
+    @Value("${sky.baidu.ak}")
+    private String baiduAk;
+
+
+    /**
+     * 用户下单
+     */
     @Override
-    @Transactional //该方法涉及多张表的插入等操作需要开启事务
+    @Transactional
     public OrderSubmitVO submit(OrdersSubmitDTO dto) {
-        //1.构造订单表并补充相应的字段
+        // 1 查询获取地址簿相关信息
+        AddressBook addressBook = addressBookMapper.getById(dto.getAddressBookId());
+        if(addressBook == null){
+            throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
+        }
+
+        // 拼接用户的完整地址：省 + 市 + 区 + 详细地址
+        String userAddressStr = addressBook.getProvinceName()
+                + addressBook.getCityName()
+                + addressBook.getDistrictName()
+                + addressBook.getDetail();
+
+        // 调用校验逻辑
+        checkOutOfRange(userAddressStr);
+
+
+        //2.构造订单表并补充相应的字段
         Orders orders = new Orders();
         BeanUtils.copyProperties(dto, orders);
 
         Long currentId = BaseContext.getCurrentId();
-        //1.1设置订单号和付款状态以及用户id
+        //2.1设置订单号和付款状态以及用户id
         orders.setNumber(System.currentTimeMillis() + "" + currentId);
         orders.setStatus(Orders.PENDING_PAYMENT);
         orders.setUserId(currentId);
         orders.setOrderTime(LocalDateTime.now());
         orders.setPayStatus(Orders.UN_PAID);
 
-        //1.2 查询获取地址簿相关信息
-        AddressBook addressBook = addressBookMapper.getById(dto.getAddressBookId());
-        if(addressBook == null){
-            throw new AddressBookBusinessException(MessageConstant.ADDRESS_BOOK_IS_NULL);
-        }
 
         orders.setPhone(addressBook.getPhone());
         orders.setAddress(addressBook.getDetail());
         orders.setConsignee(addressBook.getConsignee());
 
-        //1.3查询用户表
+        //2.3查询用户表
         User user=userMapper.getById(currentId);
         if (user==null){
             throw new UserNotLoginException(MessageConstant.USER_NOT_LOGIN);
         }
         orders.setUserName(user.getName());
 
-        //1.4插入订单表
+        //2.4插入订单表
         ordersMapper.insert(orders);
         log.info("订单表插入成功，订单id为：{}",orders.getId());
 
-        //2.构造订单明细表并补充相应的字段
+        //3.构造订单明细表并补充相应的字段
         List<OrderDetail> orderDetailList=new ArrayList<>();
-        //2.1查询当前用户的购物车数据
+        //3.1查询当前用户的购物车数据
         List<ShoppingCart> list = shoppingCartMapper.list(currentId);
         if(list==null || list.size()==0){
             throw new OrderBusinessException(MessageConstant.SHOPPING_CART_IS_NULL);
@@ -101,21 +127,125 @@ public class OrdersServiceImplx implements OrdersService {
             orderDetailList.add(orderDetail);
         });
 
-        //2.2批量插入订单明细表
+        //3.2批量插入订单明细表
         orderDetailMapper.insertBatch(orderDetailList);
 
-        //3.清空购物车
+        //4.清空购物车
 
         shoppingCartMapper.clean(currentId);
-        //4.构造并返回订单提交结果VO
+        //5.构造并返回订单提交结果VO
 
 
-        return  new OrderSubmitVO().builder()
+        return  OrderSubmitVO.builder()
                 .id(orders.getId())
                 .orderNumber(orders.getNumber())
                 .orderAmount(orders.getAmount())
                 .orderTime(orders.getOrderTime())
                 .build();
+    }
+
+    /**
+     * 检查是否超出配送范围
+     * @param userAddressStr 用户完整地址
+     */
+    private void checkOutOfRange(String userAddressStr) {
+        log.info("开始校验配送距离，商家地址：{}，用户地址：{}", shopAddress, userAddressStr);
+
+        // 1. 调用百度地图地理编码接口，获取【商家】的经纬度
+        // API URL: https://api.map.baidu.com/geocoding/v3
+        // 参数: address=shopAddress, output=json, ak=baiduAk
+        String shopCoordinate = getCoordinate(shopAddress);
+        if (shopCoordinate == null) {
+            throw new OrderBusinessException("商家地址解析失败");
+        }
+
+        // 2. 调用百度地图地理编码接口，获取【用户】的经纬度
+        String userCoordinate = getCoordinate(userAddressStr);
+        if (userCoordinate == null) {
+            throw new OrderBusinessException("您的收货地址无法解析");
+        }
+
+        // 3. 调用百度地图骑行路线规划接口，计算距离
+        // API URL: https://api.map.baidu.com/direction/v2/cycling
+        // 参数: origin=shopCoordinate, destination=userCoordinate, ak=baiduAk
+        Long distance = getDistance(shopCoordinate, userCoordinate);
+
+        if(distance > 5000) { // 5000米
+            throw new OrderBusinessException("超出配送范围，配送距离为：" + distance + "米");
+        }
+
+        log.info("配送距离校验通过，距离：{}米", distance);
+    }
+
+    /**
+     * 辅助方法：调用Geocoding API获取经纬度
+     * 返回格式示例："40.05,116.30" (纬度,经度)
+     */
+    private String getCoordinate(String address) {
+        // TODO: 使用 HttpClientUtil 发送 GET 请求
+        // 解析返回的 JSON，提取 location.lat 和 location.lng
+        // 注意：百度API返回的可能是 lng(经度), lat(纬度)，但Direction API 通常要求 "lat,lng" 格式，需仔细看文档
+        //1.构造参数
+        HashMap<String,String> params=new HashMap<>();
+        params.put("address",address);
+        params.put("output","json");
+        params.put("ak",baiduAk);
+
+        String url="https://api.map.baidu.com/geocoding/v3";
+
+        //2.发送请求
+        String string = HttpClientUtil.doGet(url, params);
+
+        //3.解析数据
+        JSONObject jsonObject = JSON.parseObject(string);
+
+        //先检查状态是否准确
+        if(!"0".equals(jsonObject.getString("status"))){
+            // 解析失败（比如AK不对，或地址不存在），建议抛出业务异常或返回 null
+            throw new OrderBusinessException("地址解析失败");
+        }
+
+        // 解析 location
+        JSONObject location = jsonObject.getJSONObject("result").getJSONObject("location");
+
+        // 拼接返回 "lat,lng"
+        String lat=location.getString("lat");
+        String lng=location.getString("lng");
+
+
+        return lat+","+lng;
+    }
+
+    /**
+     * 辅助方法：调用Direction API获取骑行距离（米）
+     */
+    private Long getDistance(String origin, String destination) {
+        // TODO: 使用 HttpClientUtil 发送 GET 请求
+        // 解析 JSON，提取 routes[0].distance
+        //1.构造参数
+        HashMap<String,String> params=new HashMap<>();
+        params.put("origin",origin);
+        params.put("destination",destination);
+        params.put("ak",baiduAk);
+
+        String url="https://api.map.baidu.com/direction/v2/riding";
+
+        //2.发送请求
+        String string = HttpClientUtil.doGet(url, params);
+
+        //3.解析数据
+        JSONObject jsonObject = JSON.parseObject(string);
+
+        //先检查状态是否准确
+        if(!"0".equals(jsonObject.getString("status"))){
+            // 解析失败（比如AK不对，或地址不存在），建议抛出业务异常或返回 null
+            throw new OrderBusinessException("距离解析失败");
+        }
+
+        //解析distance
+        JSONArray routes = jsonObject.getJSONObject("result").getJSONArray("routes");
+        Long distance = routes.getJSONObject(0).getLong("distance");
+        return distance;
     }
 
     /**
