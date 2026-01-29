@@ -606,4 +606,25 @@ public class OrdersServiceImpl implements OrdersService {
                 .build();
         ordersMapper.update(order);
     }
+
+    @Override
+    public void reminder(Long id) {
+        //1.根据id查询订单
+        Orders orders = getValidOrder(id);
+
+        //2.校验订单状态
+        if (orders == null) {
+            throw new OrderBusinessException(MessageConstant.ORDER_NOT_FOUND);
+        }
+
+        //3.构造信息数据
+        HashMap  message = new HashMap<>();
+        message.put("type",2); // 1代表来单提醒 2代码用户催单
+        message.put("orderId",orders.getId());
+        message.put("content","订单号："+orders.getNumber());
+
+        //4.发送WebSocket消息给商家端
+        webSocketServer.sendToAllClient(JSON.toJSONString(message));
+    }
+
 }
