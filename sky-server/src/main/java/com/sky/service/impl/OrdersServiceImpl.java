@@ -16,6 +16,7 @@ import com.sky.exception.UserNotLoginException;
 import com.sky.mapper.*;
 import com.sky.result.PageResult;
 import com.sky.service.OrdersService;
+import com.sky.service.WebSocketServer;
 import com.sky.utils.HttpClientUtil;
 import com.sky.utils.WeChatPayUtil;
 import com.sky.vo.OrderPaymentVO;
@@ -60,6 +61,9 @@ public class OrdersServiceImpl implements OrdersService {
 
     @Value("${sky.baidu.ak}")
     private String baiduAk;
+
+    @Autowired
+    WebSocketServer webSocketServer;
 
 
     /**
@@ -303,6 +307,17 @@ public class OrdersServiceImpl implements OrdersService {
                 .build();
 
         ordersMapper.update(orders);
+
+        // 构造信息数据
+        HashMap  message = new HashMap<>();
+        message.put("type",1); // 1代表来单提醒 2代码用户催单
+        message.put("orderId",orders.getId());
+        message.put("content","订单号："+ordersDB.getNumber());
+
+
+        // 发送WebSocket消息给商家端
+        webSocketServer.sendToAllClient(JSON.toJSONString(message));
+
     }
 
     @Override
