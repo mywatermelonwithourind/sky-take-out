@@ -64,4 +64,6 @@ public interface OrdersMapper {
     List<Orders> getOrdersByStatusTime(Integer status, LocalDateTime time);
 
     Double sumByMap(Map map);
+
+    Integer countByMap(Map map);
 }
