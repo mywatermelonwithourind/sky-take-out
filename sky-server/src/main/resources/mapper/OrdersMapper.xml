@@ -71,4 +71,18 @@
             sum(if(status=4,1,0)) as deliveryInProgress
         from orders
     </select>
+        <select id="sumByMap" resultType="java.lang.Double">
+            select sum(amount) from orders
+            <where>
+                <if test="beginDate != null">
+                    and order_time &gt;= #{beginDate}
+                </if>
+                <if test="endDate != null">
+                    and order_time &lt;= #{endDate}
+                </if>
+                <if test="status != null">
+                    and status = #{status}
+                </if>
+            </where>
+        </select>
 </mapper>
