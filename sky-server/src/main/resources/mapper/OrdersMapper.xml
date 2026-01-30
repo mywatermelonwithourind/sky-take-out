@@ -99,4 +99,14 @@
             </if>
         </where>
     </select>
+    <select id="getSalesTop10" resultType="com.sky.dto.GoodsSalesDTO">
+        select  od.name as name ,sum(od.number) as number from orders o ,order_detail od
+        where o.id=od.order_id
+          and o.status = 5
+          and o.order_time &gt;= #{begin}
+          and o.order_time &lt;= #{end}
+        group by name
+        order by number desc
+        limit 0,10;
+    </select>
 </mapper>
